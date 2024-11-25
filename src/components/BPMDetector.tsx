@@ -467,6 +467,11 @@ const BPMDetector = () => {
             </div>
           </div>
 
+          {/* Add footer crediting https://www.shadertoy.com/user/totetmatt for the original shadertoy */}
+          <div className="text-xs text-gray-400 mt-4">
+            Visualization inspired by <a href="https://www.shadertoy.com/view/lcjGWV" target="_blank" rel="noopener noreferrer">this Shadertoy</a> by totetmatt.
+          </div>
+
           {error && (
             <div className="text-red-500 text-sm">{error}</div>
           )}
