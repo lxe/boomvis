@@ -1,50 +1,126 @@
-# React + TypeScript + Vite
+# Real-time BPM Detector & Audio Visualizer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern web application that detects BPM from audio input in real-time while providing stunning WebGL-based visualizations.
 
-Currently, two official plugins are available:
+![BPM Detector Screenshot]
+*Screenshot placeholder - Add your own screenshot here*
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## Expanding the ESLint configuration
+- 🎵 Real-time BPM detection from microphone input
+- 🎨 WebGL-powered audio visualization
+- 🎛️ Adjustable audio parameters:
+  - Gain control
+  - Peak detection sensitivity
+  - Filter frequency and Q
+  - Smoothing controls
+- 📊 FFT spectrum analyzer
+- 🖥️ Fullscreen mode
+- 🎯 Beat indication system
+- 📱 Responsive design with collapsible sidebar
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+## Tech Stack
 
-- Configure the top-level `parserOptions` property like this:
+- React 18
+- TypeScript
+- WebGL 2.0
+- Web Audio API
+- Tailwind CSS
+- shadcn/ui components
+- Vite
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+## Getting Started
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+### Prerequisites
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+- Node.js 18+
+- npm or pnpm
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+### Installation
+
+1. Clone the repository:
+\```bash
+git clone https://github.com/yourusername/bpm-detector.git
+cd bpm-detector
+\```
+
+2. Install dependencies:
+\```bash
+npm install
+# or
+pnpm install
+\```
+
+3. Start the development server:
+\```bash
+npm run dev
+# or
+pnpm dev
+\```
+
+4. Open your browser and navigate to `http://localhost:5173`
+
+## Usage
+
+1. Click the "Start" button to begin audio capture
+2. Allow microphone access when prompted
+3. Adjust parameters in the sidebar to optimize detection:
+   - **Gain**: Amplifies input signal (0.1x - 5.0x)
+   - **Min Peak Distance**: Minimum time between beats (100ms - 1000ms)
+   - **Peak Threshold**: Sensitivity of beat detection (0.1 - 0.9)
+   - **Filter Frequency**: Center frequency for bandpass filter (60Hz - 2000Hz)
+   - **Filter Q**: Sharpness of the frequency filter (0.1 - 5.0)
+
+## Building for Production
+
+To create a production build:
+
+\```bash
+npm run build
+# or
+pnpm build
+\```
+
+The built files will be in the `dist` directory.
+
+## Project Structure
+
+\```
+src/
+├── components/         # React components
+│   ├── BPMDetector.tsx    # Main BPM detection logic
+│   ├── Visualizer.tsx     # WebGL visualization
+│   └── ui/               # UI components
+├── lib/
+│   ├── shaders/         # GLSL shader code
+│   └── utils.ts         # Utility functions
+└── App.tsx             # Root component
+\```
+
+## How It Works
+
+The application uses the Web Audio API to capture and analyze audio input in real-time. The audio signal goes through the following pipeline:
+
+1. Audio capture via `getUserMedia`
+2. Processing through Web Audio nodes:
+   - Gain node for amplitude control
+   - BiquadFilter for frequency isolation
+   - AnalyserNode for FFT analysis
+3. Peak detection algorithm for beat identification
+4. BPM calculation based on inter-beat intervals
+5. WebGL visualization using custom GLSL shaders
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- [shadcn/ui](https://ui.shadcn.com/) for the beautiful UI components
+- [Radix UI](https://www.radix-ui.com/) for accessible component primitives
+- [Tailwind CSS](https://tailwindcss.com/) for styling
+- [totetmatt](https://www.shadertoy.com/user/totetmatt) for the bubbles shader
