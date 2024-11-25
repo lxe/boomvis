@@ -5,8 +5,6 @@ import { Sidebar } from './Sidebar';
 import { SidebarToggle } from './SidebarToggle';
 import Visualizer from './Visualizer';
 
-const SIDEBAR_WIDTH = 320;
-
 export const VisualizerApp: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(true);
@@ -85,7 +83,6 @@ export const VisualizerApp: React.FC = () => {
               isFullscreen={isFullscreen}
               onToggleSidebar={toggleSidebar}
               onToggleFullscreen={toggleFullscreen}
-              sidebarWidth={SIDEBAR_WIDTH}
             />
           </div>
         )}

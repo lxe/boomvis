@@ -6,7 +6,6 @@ interface SidebarToggleProps {
   isFullscreen: boolean;
   onToggleSidebar: () => void;
   onToggleFullscreen: () => void;
-  sidebarWidth: number;
 }
 
 export const SidebarToggle: React.FC<SidebarToggleProps> = ({
@@ -14,7 +13,6 @@ export const SidebarToggle: React.FC<SidebarToggleProps> = ({
   isFullscreen,
   onToggleSidebar,
   onToggleFullscreen,
-  sidebarWidth,
 }) => {
   return (
     <div 
