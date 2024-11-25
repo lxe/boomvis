@@ -69,7 +69,7 @@ const BPMDetector = () => {
   const beatIndicatorRef = useRef(null);
   
   const BUFFER_SIZE = 2048;
-  const BPM_HISTORY_SIZE = 10;
+  const BPM_HISTORY_SIZE = 20;
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -85,14 +85,14 @@ const BPMDetector = () => {
 
   useEffect(() => {
     if (filterRef.current) {
-      filterRef.current.frequency.value = params.filterFrequency;
-      filterRef.current.Q.value = params.filterQ;
+      filterRef.current.frequency.setValueAtTime(params.filterFrequency, audioContextRef.current?.currentTime || 0);
+      filterRef.current.Q.setValueAtTime(params.filterQ, audioContextRef.current?.currentTime || 0);
     }
     if (analyserRef.current) {
       analyserRef.current.smoothingTimeConstant = params.smoothingConstant;
     }
     if (gainNodeRef.current) {
-      gainNodeRef.current.gain.value = params.gainValue;
+      gainNodeRef.current.gain.setValueAtTime(params.gainValue, audioContextRef.current?.currentTime || 0);
     }
   }, [params]);
 
@@ -266,23 +266,25 @@ const BPMDetector = () => {
     ctx.lineTo(width, height - (params.peakThreshold * height));
     ctx.stroke();
     
-    const barWidth = width / dataArray.length;
+    // Use first 256 frequency bins (more relevant for audio)
+    const usableLength = 256;
+    const barWidth = width / usableLength;
     
-    for (let i = 0; i < dataArray.length; i++) {
-      const rawValue = (dataArray[i] / 256) * params.gainValue;
-      const clippedValue = softClip(rawValue);
-      const barHeight = clippedValue * height;
-      
-      ctx.fillStyle = rawValue > 1 
-        ? `rgb(239, ${Math.max(0, 68 - (rawValue - 1) * 50)}, ${Math.max(0, 68 - (rawValue - 1) * 50)})` 
-        : 'rgb(59, 130, 246)';
-      
-      ctx.fillRect(
-        i * barWidth,
-        height - barHeight,
-        barWidth - 1,
-        barHeight
-      );
+    for (let i = 0; i < usableLength; i++) {
+        const rawValue = (dataArray[i] / 256) * params.gainValue;
+        const clippedValue = softClip(rawValue);
+        const barHeight = clippedValue * height;
+        
+        ctx.fillStyle = rawValue > 1 
+            ? `rgb(239, ${Math.max(0, 68 - (rawValue - 1) * 50)}, ${Math.max(0, 68 - (rawValue - 1) * 50)})` 
+            : 'rgb(59, 130, 246)';
+        
+        ctx.fillRect(
+            i * barWidth,
+            height - barHeight,
+            barWidth - 1,
+            barHeight
+        );
     }
   };
 
@@ -303,7 +305,7 @@ const BPMDetector = () => {
   return (
     <div className="flex h-screen w-screen bg-slate-900">
       {/* Main Visualizer Area */}
-      <div className="flex-1 p-0">
+      <div className={`flex-1 transition-all duration-300 ease-in-out ${isSidebarOpen ? 'mr-80' : ''}`}>
         <div className="h-full flex flex-col">
           <Visualizer 
             beatIntensity={isBeat ? 1 : 0} 
@@ -337,10 +339,9 @@ const BPMDetector = () => {
 
       {/* Sidebar */}
       <div 
-        className="w-80 bg-slate-800 p-6 overflow-y-auto flex flex-col transition-all duration-300 ease-in-out fixed right-0 top-0 bottom-0"
-        style={{
-          transform: isSidebarOpen ? 'translateX(0)' : 'translateX(100%)',
-        }}
+        className={`w-80 bg-slate-800 p-6 overflow-y-auto flex flex-col transition-all duration-300 ease-in-out fixed right-0 top-0 bottom-0 ${
+          isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
       >
         {/* BPM and Controls */}
         <div className="mb-8">

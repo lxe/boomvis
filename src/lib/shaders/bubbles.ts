@@ -1,6 +1,8 @@
 import glsl from 'glslify';
 
-// From https://www.shadertoy.com/view/lcjGWV
+
+// Credit: https://www.shadertoy.com/view/lcjGWV
+// https://www.shadertoy.com/user/totetmatt
 
 export const fragmentShaderSource = glsl`#version 300 es
 precision highp float;
@@ -39,7 +41,28 @@ float hashfloat(float p) {
 
 float getFFTValue(float x) {
     float raw = texture(uFFTTexture, vec2(x, 0.0)).r;
-    return pow(raw, 0.85) * 1.5;
+    return pow(raw, 0.85) * 0.4;
+}
+
+float easeOutQuad(float x) {
+    return 1.0 - (1.0 - x) * (1.0 - x);
+}
+
+float getBeatProgress() {
+    float timeSinceLastBeat = uTime - uLastBeatTime;
+    return clamp(timeSinceLastBeat / uBeatDuration, 0.0, 1.0);
+}
+
+vec3 erot(vec3 p, vec3 ax, float baseSpeed) {
+    float accumulatedRotation = uBeatCount * 0.00015;
+    float beatProgress = getBeatProgress();
+    float easedProgress = easeOutQuad(beatProgress);
+
+    float currentBeatRotation = smoothstep(0.0, 1.0, beatProgress) * 0.05 * getFFTValue(0.1);
+
+    float beatBoost = (1.0 - easedProgress) * (1.0 - easedProgress) * 0.0005  * getFFTValue(0.1);
+    float totalRotation = 3.0 * (accumulatedRotation + currentBeatRotation + beatBoost);
+    return mix(dot(ax, p) * ax, p, cos(totalRotation)) + cross(ax, p) * sin(totalRotation);
 }
 
 void dogrid(vec3 ro, vec3 rd, float size) {
@@ -54,100 +77,107 @@ float getModulatedRadius(vec3 gridId, float baseRadius) {
     float bassFreq = getFFTValue(abs(sin(gridId.x * 0.1))) * 1.5;
     float midFreq = getFFTValue(abs(sin(gridId.y * 0.2 + 0.3))) * 1.2;
     float highFreq = getFFTValue(abs(cos(gridId.z * 0.3 + 0.6))) * 0.8;
-    
     float radiusModulation = bassFreq * 0.12 + midFreq * 0.08 + highFreq * 0.04;
-    
-    float spatialVariation = sin(gridId.x + gridId.y + gridId.z + uTime * 0.5) * 0.04;
-    
+    float spatialVariation = sin(gridId.x + gridId.y + gridId.z + uTime * 0.5) * 0.1;
     return baseRadius + radiusModulation + spatialVariation;
 }
 
 float getOrbShape(vec3 p, float rn, float gy) {
     float baseRadius = 0.01 + gy * 0.05 - rn * 0.02;
     float dynamicRadius = getModulatedRadius(gr.id, baseRadius);
-    
-    float bassDeform = getFFTValue(0.1) * sin(p.x * 8.0 + uTime) * 0.07;
-    float midDeform = getFFTValue(0.5) * sin(p.y * 6.0 + uTime * 1.2) * 0.05;
-    float highDeform = getFFTValue(0.9) * sin(p.z * 4.0 + uTime * 0.8) * 0.04;
-    
+    float bassDeform = getFFTValue(0.1) * sin(p.x * 8.0 + uTime) * 0.7;
+    float midDeform = getFFTValue(0.5) * sin(p.y * 6.0 + uTime * 1.2) * 0.5;
+    float highDeform = getFFTValue(0.9) * sin(p.z * 4.0 + uTime * 0.8) * 0.4;
     vec3 deformedP = p;
     deformedP.x += bassDeform;
     deformedP.y += midDeform;
     deformedP.z += highDeform;
-    
     return rn > 0.0 ? 0.5 : length(deformedP) - dynamicRadius;
 }
 
-vec3 erot(vec3 p, vec3 ax, float t) {
-    return mix(dot(ax, p) * ax, p, cos(t)) + cross(ax, p) * sin(t);
+vec4 createFFTOverlay(vec2 uv) {
+    float dist = length(uv);
+    
+    // Add rotation based on time
+    float rotationSpeed = 0.2;
+    float rotationAngle = uTime * rotationSpeed;
+    
+    // Apply rotation to UV coordinates
+    float cosAngle = cos(rotationAngle);
+    float sinAngle = sin(rotationAngle);
+    vec2 rotatedUV = vec2(
+        uv.x * cosAngle - uv.y * sinAngle,
+        uv.x * sinAngle + uv.y * cosAngle
+    );
+    
+    // Calculate angle from rotated coordinates
+    float angle = atan(rotatedUV.y, rotatedUV.x);
+    
+    // Normalize angle from [-π, π] to [0, 1]
+    float normalizedAngle = (angle + 3.14159) / (2.0 * 3.14159);
+    
+    // Sample FFT value based on the normalized angle
+    float fftValue = getFFTValue(normalizedAngle);
+    
+    // Create the circular FFT bars
+    float baseRadius = 0.25;
+    float barWidth = 0.008;
+    
+    // Calculate the radial bar effect
+    float barDist = abs(dist - (baseRadius + fftValue * 0.9));
+    float barMask = smoothstep(barWidth, 0.0, barDist);
+    
+    // Add stronger glow to the bars
+    float glow = exp(-barDist * 4.0) * 0.9;
+    
+    // Calculate intensity for color modulation
+    float intensity = fftValue * 2.0;
+    
+    // Create dynamic color based on intensity
+    vec3 baseColor = vec3(0.2, 0.8, 1.0);
+    vec3 peakColor = vec3(1.0, 0.2, 0.8);
+    vec3 barColor = mix(baseColor, peakColor, intensity);
+    
+    // Enhanced alpha for more visibility
+    float alpha = (barMask + glow) * smoothstep(1.2, 0.0, dist) * 0.9;
+    
+    // Add extra glow based on overall FFT intensity
+    float totalIntensity = getFFTValue(0.1) + getFFTValue(0.5) + getFFTValue(0.9);
+    barColor *= 1.0 + totalIntensity * 0.9;
+    
+    return vec4(barColor, alpha);
 }
 
-const float MIN_ZOOM = 0.9;
-const float MAX_ZOOM = 4.5;
+const float MIN_ZOOM = 1.0;
+const float MAX_ZOOM = 4.0;
 
 float getZoom(float currentTime, float lastBeatTime, float beatDuration, float beatCount) {
-    float timeSinceLastBeat = currentTime - lastBeatTime;
-    float progress = clamp(timeSinceLastBeat / beatDuration, 0.0, 1.0);
-    float smoothProgress = smoothstep(0.0, 1.0, progress);
+    // Slow cycle using sin
+    float cycleSpeed = 0.15; // Adjust this to change speed of zoom cycle
+    float cycle = sin(currentTime * cycleSpeed);
     
-    bool isOddBeat = mod(beatCount, 2.0) == 1.0;
+    // Use tanh to smoothen the transitions at min/max points
+    float smoothCycle = tanh(cycle * 1.5); // Adjust 1.5 to change "squareness" of the wave
     
-    return isOddBeat ? mix(MIN_ZOOM, MAX_ZOOM, smoothProgress) : mix(MAX_ZOOM, MIN_ZOOM, smoothProgress);
+    // Remap from [-1,1] to [0,1]
+    float progress = smoothCycle * 0.5 + 0.5;
+    
+    return mix(MIN_ZOOM, MAX_ZOOM, progress);
 }
 
 vec3 applyFFTEffect(vec3 color, vec3 p, float g) {
-    float bassFFT = getFFTValue(0.1) * 1.1; 
-    float midFFT = getFFTValue(0.5) * 1.1; 
-    float highFFT = getFFTValue(0.9) * 0.8; 
+    float bassFFT = getFFTValue(0.1) * 1.1;
+    float midFFT = getFFTValue(0.5) * 1.1;
+    float highFFT = getFFTValue(0.9) * 0.8;
     
-    vec3 fftColor = vec3(
-        bassFFT * 1.5,
-        midFFT * 1.2,
-        highFFT * 0.8
-    );
-    
+    vec3 fftColor = vec3(bassFFT * 1.5, midFFT * 1.2, highFFT * 0.8);
     float wave = sin(p.z * 0.5 + bassFFT * 4.0) * 0.4 + 0.5;
-    color *= 1.0 + fftColor * wave * 0.8; 
+    color *= 1.0 + fftColor * wave * 0.8;
     
-    float glow = (bassFFT + midFFT + highFFT) * 0.1; 
+    float glow = (bassFFT + midFFT + highFFT) * 0.1;
     color += fftColor * glow * exp(-g * 0.15);
     
     return color;
-}
-
-vec4 createFFTOverlay(vec2 uv) {
-    vec2 fftUV = uv * vec2(1.0, 2.0);
-    float freq = abs(fftUV.x);
-    
-    float fftLow = getFFTValue(freq * 0.25) * 1.1; 
-    float fftMid = getFFTValue(freq * 0.5) * 1.0; 
-    float fftHigh = getFFTValue(freq * 0.75) * 0.8;
-    
-    float fftCombined = (fftLow * 0.1 + fftMid * 0.25 + fftHigh * 0.15) * 1.9; 
-    
-    float heightThreshold = 1.0 - fftCombined;
-    float barHeight = step(heightThreshold, abs(fftUV.y));
-    float intensity = smoothstep(heightThreshold - 0.1, heightThreshold + 0.1, abs(fftUV.y));
-    
-    float glow = exp(-abs(fftUV.y - heightThreshold) * 3.5) * fftCombined * 1.5; 
-    
-    vec3 barColor = mix(
-        vec3(0.2, 0.8, 1.0),
-        vec3(1.0, 0.2, 0.8),
-        freq
-    );
-    
-    barColor = mix(
-        barColor,
-        vec3(1.0, 0.9, 0.3),
-        sin(uTime * 3.0 + freq * 15.0) * 0.25 + 0.25 
-    );
-    
-    barColor *= 1.0 + fftCombined * 0.8;
-    
-    float alpha = max(intensity * 0.6, glow * 0.8);
-    
-    return vec4(barColor * (intensity + glow * 1.2), alpha);
 }
 
 void main() {
@@ -169,9 +199,8 @@ void main() {
     
     for(i = 0., e = 0.01, g = 0.; i++ < 99.;) {
         vec3 p = ro + rd * g;
-        
         p = erot(p, normalize(sin(uTime * 0.33 + vec3(-0.6, 0.4, 0.2))), uTime * 0.2);
-        p.z += uTime;
+        p.z += uTime * 3.0;
         
         vec3 op = p;
         
@@ -193,18 +222,38 @@ void main() {
             hashfloat(uBeatCount * 1.618033988749895),
             hashfloat(uBeatCount * 2.618033988749895),
             hashfloat(uBeatCount * 1.618033988749895) + abs(rn)
-        ) * (0.025 + (0.018 * exp(5. * fract(gy + uTime)))) / exp(e * e * i);
+        );
+
+        // Add subtle position-based variation
+        // baseColor += 0.05 * vec3(
+        //     sin(gr.id.x * 0.3 + uTime),
+        //     cos(gr.id.y * 0.2 + uTime * 0.7),
+        //     sin(gr.id.z * 0.25 + uTime * 0.5)
+        // );
+
+        // Add gentle FFT-based color modulation
+        // float bassColor = getFFTValue(0.1) * sin(uTime + rn) * 1.0;
+        // float midColor = getFFTValue(0.5) * cos(uTime * 0.7 + gy) * 0.15;
+        // float highColor = getFFTValue(0.9) * sin(uTime * 0.5 + gr.id.z) * 0.1;
         
-        col += applyFFTEffect(baseColor, p, g);
+        // baseColor += vec3(bassColor, midColor, highColor);
+
+        baseColor = normalize(baseColor) * (0.03 + (0.02 * exp(5. * fract(gy + uTime)))) / exp(e * e * i);
+
+
+
+
+        
+        col += baseColor;
     }
     
-    col *= exp(-0.08 * g);
+    col *= exp(-0.07 * g);
     
     vec4 fftOverlay = createFFTOverlay(uv);
-    float blendFactor = fftOverlay.a * 0.6;
+    float blendFactor = fftOverlay.a;
     col = mix(sqrt(col), fftOverlay.rgb, blendFactor);
     
-    col += fftOverlay.rgb * fftOverlay.a * 0.2;
+    col += fftOverlay.rgb * fftOverlay.a * 0.9;
     
     fragColor = vec4(col, 0.3);
 }`;

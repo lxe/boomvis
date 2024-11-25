@@ -116,17 +116,23 @@ export default function Visualizer({ beatIntensity = 0, fftData, isListening = f
     
     if (!canvas || !container || !gl) return;
 
-    const rect = container.getBoundingClientRect();
+    // Get the display pixel ratio
     const pixelRatio = window.devicePixelRatio || 1;
     
-    const width = Math.floor(rect.width * pixelRatio);
-    const height = Math.floor(rect.height * pixelRatio);
+    // Get the CSS size from the container
+    const displayWidth = container.clientWidth;
+    const displayHeight = container.clientHeight;
     
-    if (canvas.width !== width || canvas.height !== height) {
-      canvas.width = width;
-      canvas.height = height;
-      gl.viewport(0, 0, width, height);
-    }
+    // Set the canvas size in CSS pixels
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
+    
+    // Set the canvas buffer size scaled for the pixel ratio
+    canvas.width = Math.floor(displayWidth * pixelRatio);
+    canvas.height = Math.floor(displayHeight * pixelRatio);
+    
+    // Update the viewport to match
+    gl.viewport(0, 0, canvas.width, canvas.height);
   }, []);
 
   // Initialize WebGL
@@ -281,7 +287,8 @@ export default function Visualizer({ beatIntensity = 0, fftData, isListening = f
         style={{
           display: 'block',
           width: '100%',
-          height: '100%'
+          height: '100%',
+          // imageRendering: 'pixelated' // Optional: adds crisp scaling for pixel art
         }}
       />
     </div>
