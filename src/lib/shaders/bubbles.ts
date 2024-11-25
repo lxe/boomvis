@@ -1,5 +1,4 @@
-import glsl from 'glslify';
-
+import { glsl } from "@/utils/glsl";
 
 // Credit: https://www.shadertoy.com/view/lcjGWV
 // https://www.shadertoy.com/user/totetmatt
@@ -74,10 +73,10 @@ void dogrid(vec3 ro, vec3 rd, float size) {
 }
 
 float getModulatedRadius(vec3 gridId, float baseRadius) {
-    float bassFreq = getFFTValue(abs(sin(gridId.x * 0.1))) * 1.5;
-    float midFreq = getFFTValue(abs(sin(gridId.y * 0.2 + 0.3))) * 1.2;
-    float highFreq = getFFTValue(abs(cos(gridId.z * 0.3 + 0.6))) * 0.8;
-    float radiusModulation = bassFreq * 0.12 + midFreq * 0.08 + highFreq * 0.04;
+    float bassFreq = getFFTValue(abs(sin(gridId.x * 0.1))) * 2.0;
+    float midFreq = getFFTValue(abs(sin(gridId.y * 0.2 + 0.3))) * 1.6;
+    float highFreq = getFFTValue(abs(cos(gridId.z * 0.3 + 0.6))) * 1.2;
+    float radiusModulation = bassFreq * 0.15 + midFreq * 0.1 + highFreq * 0.05;
     float spatialVariation = sin(gridId.x + gridId.y + gridId.z + uTime * 0.5) * 0.1;
     return baseRadius + radiusModulation + spatialVariation;
 }
@@ -85,13 +84,16 @@ float getModulatedRadius(vec3 gridId, float baseRadius) {
 float getOrbShape(vec3 p, float rn, float gy) {
     float baseRadius = 0.01 + gy * 0.05 - rn * 0.02;
     float dynamicRadius = getModulatedRadius(gr.id, baseRadius);
-    float bassDeform = getFFTValue(0.1) * sin(p.x * 8.0 + uTime) * 0.7;
-    float midDeform = getFFTValue(0.5) * sin(p.y * 6.0 + uTime * 1.2) * 0.5;
-    float highDeform = getFFTValue(0.9) * sin(p.z * 4.0 + uTime * 0.8) * 0.4;
+    
+    float bassDeform = getFFTValue(0.1) * sin(p.x * 8.0 + uTime) * 1.2;
+    float midDeform = getFFTValue(0.5) * sin(p.y * 6.0 + uTime * 1.2) * 0.9;
+    float highDeform = getFFTValue(0.9) * sin(p.z * 4.0 + uTime * 0.8) * 0.7;
+    
     vec3 deformedP = p;
     deformedP.x += bassDeform;
     deformedP.y += midDeform;
     deformedP.z += highDeform;
+    
     return rn > 0.0 ? 0.5 : length(deformedP) - dynamicRadius;
 }
 
@@ -120,26 +122,27 @@ vec4 createFFTOverlay(vec2 uv) {
     float fftValue = getFFTValue(normalizedAngle);
     
     // Create the circular FFT bars
-    float baseRadius = 0.25;
-    float barWidth = 0.008;
+    float baseRadius = 0.15;
+    float barWidth = 0.008 + fftValue * 0.05; // Dynamic thickness
     
     // Calculate the radial bar effect
     float barDist = abs(dist - (baseRadius + fftValue * 0.9));
     float barMask = smoothstep(barWidth, 0.0, barDist);
     
-    // Add stronger glow to the bars
-    float glow = exp(-barDist * 4.0) * 0.9;
+    // Reduce base glow and enhance peak glow
+    float baseGlow = exp(-barDist * 4.0) * 0.1; // Reduced base glow
+    float peakGlow = exp(-barDist * 9.0) * (0.4 + fftValue * 0.9); // Enhanced peak glow
     
     // Calculate intensity for color modulation
-    float intensity = fftValue * 2.0;
+    float intensity = fftValue * 2.5; // Increased intensity for peaks
     
     // Create dynamic color based on intensity
-    vec3 baseColor = vec3(0.2, 0.8, 1.0);
-    vec3 peakColor = vec3(1.0, 0.2, 0.8);
+    vec3 baseColor = vec3(0.4, 1.0, 1.2); // Brighter base color
+    vec3 peakColor = vec3(1.2, 0.4, 1.0); // Brighter peak color
     vec3 barColor = mix(baseColor, peakColor, intensity);
     
     // Enhanced alpha for more visibility
-    float alpha = (barMask + glow) * smoothstep(1.2, 0.0, dist) * 0.9;
+    float alpha = (barMask + peakGlow) * smoothstep(1.2, 0.0, dist) * (0.9 + fftValue * 0.1); // Dynamic transparency
     
     // Add extra glow based on overall FFT intensity
     float totalIntensity = getFFTValue(0.1) + getFFTValue(0.5) + getFFTValue(0.9);
@@ -148,21 +151,26 @@ vec4 createFFTOverlay(vec2 uv) {
     return vec4(barColor, alpha);
 }
 
-const float MIN_ZOOM = 1.0;
-const float MAX_ZOOM = 4.0;
+const float MIN_ZOOM = -0.6;
+const float MAX_ZOOM = 5.0;
 
 float getZoom(float currentTime, float lastBeatTime, float beatDuration, float beatCount) {
     // Slow cycle using sin
-    float cycleSpeed = 0.15; // Adjust this to change speed of zoom cycle
+    float cycleSpeed = 0.4; // Adjust this to change speed of zoom cycle
     float cycle = sin(currentTime * cycleSpeed);
     
     // Use tanh to smoothen the transitions at min/max points
-    float smoothCycle = tanh(cycle * 1.5); // Adjust 1.5 to change "squareness" of the wave
+    float smoothCycle = tanh(cycle * 2.0); // Adjust 2.0 to change "squareness" of the wave
     
     // Remap from [-1,1] to [0,1]
     float progress = smoothCycle * 0.5 + 0.5;
     
-    return mix(MIN_ZOOM, MAX_ZOOM, progress);
+    // Allow dwelling at certain zoom levels by adjusting the range
+    float dwellFactor = 0.8; // Adjust this to control how long it dwells at min/max
+    float minZoom = MIN_ZOOM + dwellFactor * (MAX_ZOOM - MIN_ZOOM);
+    float maxZoom = MAX_ZOOM - dwellFactor * (MAX_ZOOM - MIN_ZOOM);
+    
+    return mix(minZoom, maxZoom, progress);
 }
 
 vec3 applyFFTEffect(vec3 color, vec3 p, float g) {
@@ -239,21 +247,18 @@ void main() {
         // baseColor += vec3(bassColor, midColor, highColor);
 
         baseColor = normalize(baseColor) * (0.03 + (0.02 * exp(5. * fract(gy + uTime)))) / exp(e * e * i);
-
-
-
-
         
         col += baseColor;
     }
     
-    col *= exp(-0.07 * g);
+    float brightness = 0.12;
+    col *= exp(-brightness * g);
     
     vec4 fftOverlay = createFFTOverlay(uv);
     float blendFactor = fftOverlay.a;
     col = mix(sqrt(col), fftOverlay.rgb, blendFactor);
     
-    col += fftOverlay.rgb * fftOverlay.a * 0.9;
+    col += fftOverlay.rgb * fftOverlay.a * 0.4;
     
     fragColor = vec4(col, 0.3);
 }`;

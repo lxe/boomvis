@@ -1,5 +1,4 @@
-import glsl from 'glslify';
-
+import { glsl } from "@/utils/glsl";
 
 export const __fragmentShaderSource = glsl`#version 300 es
 precision highp float;

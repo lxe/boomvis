@@ -119,6 +119,7 @@ export default function Visualizer({ beatIntensity = 0, fftData, isListening = f
     // Get the display pixel ratio
     const pixelRatio = window.devicePixelRatio || 1;
     
+    
     // Get the CSS size from the container
     const displayWidth = container.clientWidth;
     const displayHeight = container.clientHeight;
@@ -288,7 +289,7 @@ export default function Visualizer({ beatIntensity = 0, fftData, isListening = f
           display: 'block',
           width: '100%',
           height: '100%',
-          // imageRendering: 'pixelated' // Optional: adds crisp scaling for pixel art
+          imageRendering: 'pixelated',
         }}
       />
     </div>
