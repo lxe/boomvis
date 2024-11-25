@@ -34,34 +34,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   return (
     <div 
-      className={`w-80 bg-slate-800 p-6 overflow-y-auto flex flex-col transition-all duration-300 ease-in-out fixed right-0 top-0 bottom-0 ${
+      className={`w-80 bg-slate-800/80 p-4 overflow-y-auto flex flex-col transition-all duration-300 ease-in-out fixed right-0 top-0 bottom-0 ${
         isOpen ? 'translate-x-0' : 'translate-x-full'
       }`}
     >
       {/* BPM and Controls */}
-      <div className="mb-8">
-        <div className="space-y-4">
+      <div className="mb-4">
+        <div className="space-y-2">
           <Button
             onClick={onStartStop}
-            className={`w-full py-3 ${isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'}`}
+            className={`w-full py-2 text-sm ${isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'}`}
           >
             {isListening ? (
-              <><MicOff className="mr-2" /> Stop</>
+              <><MicOff className="mr-1" /> Stop</>
             ) : (
-              <><Mic className="mr-2" /> Start</>
+              <><Mic className="mr-1" /> Start</>
             )}
           </Button>
 
-          <div className="text-4xl font-bold text-center">
+          <div className="text-2xl font-bold text-center">
             {bpm > 0 ? `${bpm} BPM` : '--'}
           </div>
-          <div className="text-sm text-gray-400 text-center">
+          <div className="text-xs text-gray-400 text-center">
             {isListening ? 'Listening...' : 'Press Start to begin'}
           </div>
         </div>
 
         {/* Mini FFT Visualizer */}
-        <div className="relative w-full h-24 bg-slate-800 rounded-lg overflow-hidden mt-4">
+        <div className="relative w-full h-20 bg-slate-800 rounded-lg overflow-hidden mt-2">
           <canvas
             ref={canvasRef}
             width={600}
@@ -80,8 +80,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Parameters */}
-      <div className="space-y-6">
-        <div className="space-y-4">
+      <div className="space-y-4">
+        <div className="space-y-2">
           <ParameterControl
             label="Gain"
             value={params.gainValue}
@@ -142,7 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <DebugPanel debugData={debugData} volume={volume} />
 
-        <div className="text-xs text-gray-400 mt-4">
+        <div className="text-xs text-gray-400 mt-2">
           Visualization inspired by {' '}
           <a 
             href="https://www.shadertoy.com/view/lcjGWV" 

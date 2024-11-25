@@ -6,21 +6,35 @@ import { glsl } from "@/utils/glsl";
 export const fragmentShaderSource = glsl`#version 300 es
 precision highp float;
 
-uniform float uTime;
-uniform vec2 uResolution;
-uniform float uBeatCount;
-uniform float uLastBeatTime;
-uniform float uBeatDuration;
-uniform sampler2D uFFTTexture;
-in vec2 vUv;
+// Configuration flags and parameters
+const bool ENABLE_UNDERWATER_EFFECT = false; // Toggle underwater effect
+const float WAVE_STRENGTH = 0.02; // Strength of wave distortion
+const float ROTATION_SPEED = 0.1; // Speed of continuous rotation
+const float BEAT_ROTATION_BOOST = 0.2; // Additional rotation speed on beat
+const float COLOR_INTENSITY = 0.2; // Intensity of color modulation
+const float MIN_ZOOM = -0.6; // Minimum zoom level
+const float MAX_ZOOM = 5.0; // Maximum zoom level
+const float ZOOM_CYCLE_SPEED = 0.4; // Speed of zoom cycling
+const float DWELL_FACTOR = 0.8; // Factor for dwelling at zoom levels
 
-out vec4 fragColor;
+// Uniforms
+uniform float uTime; // Current time
+uniform vec2 uResolution; // Resolution of the viewport
+uniform float uBeatCount; // Number of beats
+uniform float uLastBeatTime; // Time of the last beat
+uniform float uBeatDuration; // Duration of a beat
+uniform sampler2D uFFTTexture; // FFT texture for audio visualization
+in vec2 vUv; // Varying UV coordinates
 
+out vec4 fragColor; // Output color
+
+// Grid structure for 3D grid calculations
 struct Grid {
-    vec3 id;
-    float d;
+    vec3 id; // Grid cell identifier
+    float d; // Distance to the next grid cell
 } gr;
 
+// Hash functions for pseudo-random number generation
 #define FBI(p) floatBitsToInt(p)
 #define FFBI(a) FBI(cos(a))^FBI(a)
 
@@ -38,32 +52,39 @@ float hashfloat(float p) {
     return float(s) * (1.0 / float(0xffffffffu));
 }
 
+// Retrieve FFT value from texture
 float getFFTValue(float x) {
     float raw = texture(uFFTTexture, vec2(x, 0.0)).r;
     return pow(raw, 0.85) * 0.4;
 }
 
+// Easing function for smooth transitions
 float easeOutQuad(float x) {
     return 1.0 - (1.0 - x) * (1.0 - x);
 }
 
+// Calculate progress of the current beat
 float getBeatProgress() {
     float timeSinceLastBeat = uTime - uLastBeatTime;
     return clamp(timeSinceLastBeat / uBeatDuration, 0.0, 1.0);
 }
 
+// Rotate a point around an axis with modulation
 vec3 erot(vec3 p, vec3 ax, float baseSpeed) {
-    float accumulatedRotation = uBeatCount * 0.00015;
+    float continuousRotation = uTime * ROTATION_SPEED;
     float beatProgress = getBeatProgress();
     float easedProgress = easeOutQuad(beatProgress);
 
-    float currentBeatRotation = smoothstep(0.0, 1.0, beatProgress) * 0.05 * getFFTValue(0.1);
+    // Increase rotation speed briefly on beat
+    float beatRotationBoost = smoothstep(0.0, 1.0, beatProgress) * BEAT_ROTATION_BOOST * getFFTValue(0.1);
 
-    float beatBoost = (1.0 - easedProgress) * (1.0 - easedProgress) * 0.0005  * getFFTValue(0.1);
-    float totalRotation = 3.0 * (accumulatedRotation + currentBeatRotation + beatBoost);
+    // Total rotation includes continuous rotation and beat-induced boost
+    float totalRotation = continuousRotation + beatRotationBoost;
+    
     return mix(dot(ax, p) * ax, p, cos(totalRotation)) + cross(ax, p) * sin(totalRotation);
 }
 
+// Calculate grid intersection
 void dogrid(vec3 ro, vec3 rd, float size) {
     gr.id = (floor(ro + rd * 1E-3) / size + 0.5) * size;
     vec3 src = -(ro - gr.id) / rd;
@@ -72,6 +93,7 @@ void dogrid(vec3 ro, vec3 rd, float size) {
     gr.d = min(bz.x, min(bz.y, bz.z));
 }
 
+// Modulate radius based on FFT values
 float getModulatedRadius(vec3 gridId, float baseRadius) {
     float bassFreq = getFFTValue(abs(sin(gridId.x * 0.1))) * 2.0;
     float midFreq = getFFTValue(abs(sin(gridId.y * 0.2 + 0.3))) * 1.6;
@@ -81,6 +103,7 @@ float getModulatedRadius(vec3 gridId, float baseRadius) {
     return baseRadius + radiusModulation + spatialVariation;
 }
 
+// Calculate shape of the orb with deformation
 float getOrbShape(vec3 p, float rn, float gy) {
     float baseRadius = 0.01 + gy * 0.05 - rn * 0.02;
     float dynamicRadius = getModulatedRadius(gr.id, baseRadius);
@@ -97,6 +120,7 @@ float getOrbShape(vec3 p, float rn, float gy) {
     return rn > 0.0 ? 0.5 : length(deformedP) - dynamicRadius;
 }
 
+// Create FFT overlay effect
 vec4 createFFTOverlay(vec2 uv) {
     float dist = length(uv);
     
@@ -151,12 +175,10 @@ vec4 createFFTOverlay(vec2 uv) {
     return vec4(barColor, alpha);
 }
 
-const float MIN_ZOOM = -0.6;
-const float MAX_ZOOM = 5.0;
-
+// Calculate zoom level based on time and beat
 float getZoom(float currentTime, float lastBeatTime, float beatDuration, float beatCount) {
     // Slow cycle using sin
-    float cycleSpeed = 0.4; // Adjust this to change speed of zoom cycle
+    float cycleSpeed = ZOOM_CYCLE_SPEED; // Adjust this to change speed of zoom cycle
     float cycle = sin(currentTime * cycleSpeed);
     
     // Use tanh to smoothen the transitions at min/max points
@@ -166,13 +188,14 @@ float getZoom(float currentTime, float lastBeatTime, float beatDuration, float b
     float progress = smoothCycle * 0.5 + 0.5;
     
     // Allow dwelling at certain zoom levels by adjusting the range
-    float dwellFactor = 0.8; // Adjust this to control how long it dwells at min/max
+    float dwellFactor = DWELL_FACTOR; // Adjust this to control how long it dwells at min/max
     float minZoom = MIN_ZOOM + dwellFactor * (MAX_ZOOM - MIN_ZOOM);
     float maxZoom = MAX_ZOOM - dwellFactor * (MAX_ZOOM - MIN_ZOOM);
     
     return mix(minZoom, maxZoom, progress);
 }
 
+// Apply FFT effect to color
 vec3 applyFFTEffect(vec3 color, vec3 p, float g) {
     float bassFFT = getFFTValue(0.1) * 1.1;
     float midFFT = getFFTValue(0.5) * 1.1;
@@ -188,77 +211,81 @@ vec3 applyFFTEffect(vec3 color, vec3 p, float g) {
     return color;
 }
 
+// Main function to render the fragment
 void main() {
     vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / uResolution.y;
     vec3 col = vec3(0.);
+
+    if (ENABLE_UNDERWATER_EFFECT) {
+        // Add a subtle wave effect to the background
+        uv.x += sin(uv.y * 10.0 + uTime * 0.5) * WAVE_STRENGTH;
+        uv.y += cos(uv.x * 10.0 + uTime * 0.5) * WAVE_STRENGTH;
+    }
     
-    vec3 ro = vec3(0.2, 0.2, -5.);
-    vec3 rt = vec3(0.);
-    vec3 z = normalize(rt - ro);
-    vec3 x = normalize(cross(z, vec3(0., -1., 0.)));
-    vec3 y = cross(z, x);
-    
+    vec3 ro = vec3(0.2, 0.2, -5.); // Ray origin
+    vec3 rt = vec3(0.); // Ray target
+    vec3 z = normalize(rt - ro); // Forward direction
+    vec3 x = normalize(cross(z, vec3(0., -1., 0.))); // Right direction
+    vec3 y = cross(z, x); // Up direction
+
     float zoom = getZoom(uTime, uLastBeatTime, uBeatDuration, uBeatCount);
     vec3 perspective = vec3(uv, zoom);
-    vec3 rd = mat3(x, y, z) * normalize(perspective);
-    
+    vec3 rd = mat3(x, y, z) * normalize(perspective); // Ray direction
+
     float i, e, g;
     float gridlen = 0.;
-    
+
     for(i = 0., e = 0.01, g = 0.; i++ < 99.;) {
         vec3 p = ro + rd * g;
         p = erot(p, normalize(sin(uTime * 0.33 + vec3(-0.6, 0.4, 0.2))), uTime * 0.2);
         p.z += uTime * 3.0;
-        
+
         vec3 op = p;
-        
+
         if(gridlen <= g) {
             dogrid(p, rd, 1.);
             gridlen += gr.d;
         }
-        
+
         p -= gr.id;
         float gy = dot(sin(gr.id * 2.), cos(gr.id.zxy * 5.));
         float rn = hash(gr.id + floor(2.0));
         p.x += sin(rn) * 0.25;
-        
+
         float h = getOrbShape(p, rn, gy);
         e = max(0.001 + op.z * 0.000002, abs(h));
         g += e;
-        
+
         vec3 baseColor = vec3(
             hashfloat(uBeatCount * 1.618033988749895),
             hashfloat(uBeatCount * 2.618033988749895),
             hashfloat(uBeatCount * 1.618033988749895) + abs(rn)
         );
 
-        // Add subtle position-based variation
-        // baseColor += 0.05 * vec3(
-        //     sin(gr.id.x * 0.3 + uTime),
-        //     cos(gr.id.y * 0.2 + uTime * 0.7),
-        //     sin(gr.id.z * 0.25 + uTime * 0.5)
-        // );
-
-        // Add gentle FFT-based color modulation
-        // float bassColor = getFFTValue(0.1) * sin(uTime + rn) * 1.0;
-        // float midColor = getFFTValue(0.5) * cos(uTime * 0.7 + gy) * 0.15;
-        // float highColor = getFFTValue(0.9) * sin(uTime * 0.5 + gr.id.z) * 0.1;
-        
-        // baseColor += vec3(bassColor, midColor, highColor);
+        // Adjust color to more aquatic tones
+        if (ENABLE_UNDERWATER_EFFECT) {
+            baseColor = mix(baseColor, vec3(0.0, 0.4, 0.6), COLOR_INTENSITY);
+        }
 
         baseColor = normalize(baseColor) * (0.03 + (0.02 * exp(5. * fract(gy + uTime)))) / exp(e * e * i);
-        
+
         col += baseColor;
     }
-    
+
     float brightness = 0.12;
     col *= exp(-brightness * g);
-    
-    vec4 fftOverlay = createFFTOverlay(uv);
+
+    vec4 fftOverlay = createFFTOverlay((gl_FragCoord.xy - 0.5 * uResolution.xy) / uResolution.y); // Use original UVs for FFT
     float blendFactor = fftOverlay.a;
     col = mix(sqrt(col), fftOverlay.rgb, blendFactor);
-    
+
     col += fftOverlay.rgb * fftOverlay.a * 0.4;
-    
-    fragColor = vec4(col, 0.3);
+
+    // Add a blue tint to simulate underwater lighting
+    if (ENABLE_UNDERWATER_EFFECT) {
+        col = mix(col, vec3(0.0, 0.2, 0.4), 0.2);
+    }
+
+    fragColor = vec4(col, 0.3); // Final fragment color with transparency
 }`;
+
