@@ -20,20 +20,30 @@ export const SidebarToggle: React.FC<SidebarToggleProps> = ({
     <div 
       className="absolute right-0 top-4 flex gap-2 z-10"
       style={{
-        right: isOpen ? `${sidebarWidth}px` : '0',
+        right: '16px',
       }}
     >
       <button
         onClick={onToggleFullscreen}
-        className="bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 hover:text-slate-300 p-1.5 rounded-l-sm transition-all duration-200"
+        className="p-2 rounded-full bg-slate-800/50 backdrop-blur-sm hover:bg-slate-700/50 transition-all duration-200 group"
+        aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
       >
-        {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+        {isFullscreen ? (
+          <Minimize2 className="w-5 h-5 text-slate-300 group-hover:text-white" />
+        ) : (
+          <Maximize2 className="w-5 h-5 text-slate-300 group-hover:text-white" />
+        )}
       </button>
       <button
         onClick={onToggleSidebar}
-        className="bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 hover:text-slate-300 p-1.5 rounded-l-sm transition-all duration-200"
+        className="p-2 rounded-full bg-slate-800/50 backdrop-blur-sm hover:bg-slate-700/50 transition-all duration-200 group"
+        aria-label={isOpen ? 'Close sidebar' : 'Open sidebar'}
       >
-        {isOpen ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        {isOpen ? (
+          <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-white" />
+        ) : (
+          <ChevronLeft className="w-5 h-5 text-slate-300 group-hover:text-white" />
+        )}
       </button>
     </div>
   );

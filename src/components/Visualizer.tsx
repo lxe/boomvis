@@ -119,21 +119,26 @@ export default function Visualizer({ beatIntensity = 0, fftData, isListening = f
     // Get the display pixel ratio
     const pixelRatio = window.devicePixelRatio || 1;
     
-    
     // Get the CSS size from the container
     const displayWidth = container.clientWidth;
     const displayHeight = container.clientHeight;
     
     // Set the canvas size in CSS pixels
-    canvas.style.width = `${displayWidth}px`;
-    canvas.style.height = `${displayHeight}px`;
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
     
     // Set the canvas buffer size scaled for the pixel ratio
-    canvas.width = Math.floor(displayWidth * pixelRatio);
-    canvas.height = Math.floor(displayHeight * pixelRatio);
-    
-    // Update the viewport to match
-    gl.viewport(0, 0, canvas.width, canvas.height);
+    const newWidth = Math.floor(displayWidth * pixelRatio);
+    const newHeight = Math.floor(displayHeight * pixelRatio);
+
+    // Only update if the size has changed
+    if (canvas.width !== newWidth || canvas.height !== newHeight) {
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+      
+      // Update the viewport to match
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
   }, []);
 
   // Initialize WebGL
@@ -285,12 +290,7 @@ export default function Visualizer({ beatIntensity = 0, fftData, isListening = f
     <div ref={containerRef} className="w-full h-full">
       <canvas
         ref={canvasRef}
-        style={{
-          display: 'block',
-          width: '100%',
-          height: '100%',
-          imageRendering: 'pixelated',
-        }}
+        style={{ width: '100%', height: '100%' }}
       />
     </div>
   );

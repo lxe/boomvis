@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useBeatDetection } from '../hooks/useBeatDetection';
 import { useAudioParameters } from '../hooks/useAudioParameters';
 import { Sidebar } from './Sidebar';
@@ -8,8 +8,19 @@ import Visualizer from './Visualizer';
 const SIDEBAR_WIDTH = 320;
 
 export const VisualizerApp: React.FC = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   const { params, updateParameter } = useAudioParameters();
   const {
@@ -35,10 +46,6 @@ export const VisualizerApp: React.FC = () => {
     }
   }, [isListening, stopListening, startListening, params]);
 
-  const toggleSidebar = useCallback(() => {
-    setIsSidebarOpen(prev => !prev);
-  }, []);
-
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen();
@@ -49,44 +56,64 @@ export const VisualizerApp: React.FC = () => {
     }
   }, []);
 
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen(prev => !prev);
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 300);
+  }, []);
+
   return (
-    <div className="flex h-screen w-screen bg-slate-900">
+    <div className="relative h-screen w-screen bg-slate-900 overflow-hidden">
       {/* Main Visualizer Area */}
       <div 
-        className={`flex-1 transition-all duration-300 ease-in-out ${
-          isSidebarOpen ? `mr-${SIDEBAR_WIDTH}` : ''
+        className={`absolute inset-0 transition-all duration-300 ease-in-out ${
+          !isFullscreen && isSidebarOpen ? 'mr-80' : ''
         }`}
       >
-        <div className="h-full flex flex-col">
-          <Visualizer 
-            beatIntensity={isBeat ? 1 : 0} 
-            fftData={fftData}
-            isListening={isListening}
-          />
-        </div>
+        <Visualizer 
+          beatIntensity={isBeat ? 1 : 0} 
+          fftData={fftData}
+          isListening={isListening}
+        />
+
+        {/* Sidebar Toggle and Fullscreen Buttons */}
+        {!isFullscreen && (
+          <div className="absolute right-0 top-0 h-full">
+            <SidebarToggle
+              isOpen={isSidebarOpen}
+              isFullscreen={isFullscreen}
+              onToggleSidebar={toggleSidebar}
+              onToggleFullscreen={toggleFullscreen}
+              sidebarWidth={SIDEBAR_WIDTH}
+            />
+          </div>
+        )}
       </div>
 
-      <SidebarToggle 
-        isOpen={isSidebarOpen}
-        isFullscreen={isFullscreen}
-        onToggleSidebar={toggleSidebar}
-        onToggleFullscreen={toggleFullscreen}
-        sidebarWidth={SIDEBAR_WIDTH}
-      />
-
-      <Sidebar 
-        isOpen={isSidebarOpen}
-        isListening={isListening}
-        bpm={bpm}
-        volume={volume}
-        isClipping={isClipping}
-        debugData={debugData}
-        params={params}
-        onParamChange={updateParameter}
-        onStartStop={handleStartStop}
-        canvasRef={canvasRef}
-        beatIndicatorRef={beatIndicatorRef}
-      />
+      {/* Sidebar */}
+      {!isFullscreen && (
+        <div 
+          className={`fixed top-0 right-0 h-screen w-80 bg-slate-800 transition-transform duration-300 ease-in-out ${
+            isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          <div className="h-full overflow-y-auto">
+            <Sidebar 
+              isListening={isListening}
+              bpm={bpm}
+              volume={volume}
+              isClipping={isClipping}
+              debugData={debugData}
+              params={params}
+              onParamChange={updateParameter}
+              onStartStop={handleStartStop}
+              canvasRef={canvasRef}
+              beatIndicatorRef={beatIndicatorRef}
+            />
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="absolute top-4 left-4 bg-red-500/90 text-white px-4 py-2 rounded shadow-lg">
