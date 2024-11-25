@@ -56,9 +56,17 @@ export const VisualizerApp: React.FC = () => {
 
   const toggleSidebar = useCallback(() => {
     setSidebarOpen(prev => !prev);
-    setTimeout(() => {
+    
+    // Dispatch resize immediately
+    window.dispatchEvent(new Event('resize'));
+    
+    // Set up animation end handler
+    const timeoutId = setTimeout(() => {
       window.dispatchEvent(new Event('resize'));
     }, 300);
+
+    // Cleanup timeout on next toggle
+    return () => clearTimeout(timeoutId);
   }, []);
 
   return (

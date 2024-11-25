@@ -288,4 +288,3 @@ void main() {
 
     fragColor = vec4(col, 0.3); // Final fragment color with transparency
 }`;
-

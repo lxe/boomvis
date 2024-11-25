@@ -16,7 +16,7 @@ export const SidebarToggle: React.FC<SidebarToggleProps> = ({
 }) => {
   return (
     <div 
-      className="absolute right-0 top-4 flex gap-2 z-10"
+      className="absolute right-0 top-4 flex flex-col gap-2 z-10"
       style={{
         right: '16px',
       }}

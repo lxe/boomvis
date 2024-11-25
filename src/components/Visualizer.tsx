@@ -4,6 +4,10 @@ import { vertexShaderSource } from '../lib/shaders';
 // import { fragmentShaderSource } from '../lib/shaders/ffttest';
 import { fragmentShaderSource } from '../lib/shaders/bubbles';
 
+const MOBILE_SCALE_FACTOR = 0.5; // Reduce resolution on mobile
+const TARGET_FPS = 30; // Limit FPS on mobile
+const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
 const createShader = (gl: WebGL2RenderingContext, type: number, source: string) => {
   const shader = gl.createShader(type);
   if (!shader) throw new Error('Failed to create shader');
@@ -109,6 +113,9 @@ export default function Visualizer({ beatIntensity = 0, fftData, isListening = f
   const [beatCount, setBeatCount] = useState<number>(0);
   const [lastBeatTime, setLastBeatTime] = useState<number>(0);
 
+  const lastFrameTimeRef = useRef<number>(0);
+  const frameIntervalRef = useRef<number>(1000 / (IS_MOBILE ? TARGET_FPS : 60));
+
   const handleResize = useCallback(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -127,17 +134,20 @@ export default function Visualizer({ beatIntensity = 0, fftData, isListening = f
     canvas.style.width = '100%';
     canvas.style.height = '100%';
     
+    // Apply mobile scaling if needed
+    const scaleFactor = IS_MOBILE ? MOBILE_SCALE_FACTOR : 1;
+    
     // Set the canvas buffer size scaled for the pixel ratio
-    const newWidth = Math.floor(displayWidth * pixelRatio);
-    const newHeight = Math.floor(displayHeight * pixelRatio);
+    const newWidth = Math.floor(displayWidth * pixelRatio * scaleFactor);
+    const newHeight = Math.floor(displayHeight * pixelRatio * scaleFactor);
 
     // Only update if the size has changed
     if (canvas.width !== newWidth || canvas.height !== newHeight) {
-      canvas.width = newWidth;
-      canvas.height = newHeight;
-      
-      // Update the viewport to match
-      gl.viewport(0, 0, canvas.width, canvas.height);
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+        
+        // Update the viewport to match
+        gl.viewport(0, 0, canvas.width, canvas.height);
     }
   }, []);
 
@@ -260,28 +270,36 @@ export default function Visualizer({ beatIntensity = 0, fftData, isListening = f
 
     if (!gl || !program || !uniforms || !fftTexture) return;
 
-    const render = () => {
-      const time = (Date.now() - startTimeRef.current) * 0.001;
-      
-      gl.useProgram(program);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, fftTexture);
-      gl.uniform1i(uniforms.fftTexture, 0);
-      
-      gl.uniform1f(uniforms.time, time);
-      gl.uniform2f(uniforms.resolution, gl.canvas.width, gl.canvas.height);
-      gl.uniform1f(uniforms.beatCount, beatCount);
-      gl.uniform1f(uniforms.lastBeatTime, lastBeatTime);
-      gl.uniform1f(uniforms.beatDuration, 0.1);
+    const render = (currentTime: number) => {
+        // Frame rate limiting
+        const elapsed = currentTime - lastFrameTimeRef.current;
+        if (elapsed < frameIntervalRef.current) {
+            frameRef.current = requestAnimationFrame(render);
+            return;
+        }
+        lastFrameTimeRef.current = currentTime - (elapsed % frameIntervalRef.current);
 
-      gl.enableVertexAttribArray(uniforms.position);
-      gl.vertexAttribPointer(uniforms.position, 2, gl.FLOAT, false, 0, 0);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-      
-      frameRef.current = requestAnimationFrame(render);
+        const time = (Date.now() - startTimeRef.current) * 0.001;
+        
+        gl.useProgram(program);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, fftTexture);
+        gl.uniform1i(uniforms.fftTexture, 0);
+        
+        gl.uniform1f(uniforms.time, time);
+        gl.uniform2f(uniforms.resolution, gl.canvas.width, gl.canvas.height);
+        gl.uniform1f(uniforms.beatCount, beatCount);
+        gl.uniform1f(uniforms.lastBeatTime, lastBeatTime);
+        gl.uniform1f(uniforms.beatDuration, 0.1);
+
+        gl.enableVertexAttribArray(uniforms.position);
+        gl.vertexAttribPointer(uniforms.position, 2, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        
+        frameRef.current = requestAnimationFrame(render);
     };
 
-    render();
+    render(0);
 
     return () => cancelAnimationFrame(frameRef.current);
   }, [beatCount, lastBeatTime]);
