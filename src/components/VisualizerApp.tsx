@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useBeatDetection } from '../hooks/useBeatDetection';
 import { useAudioParameters } from '../hooks/useAudioParameters';
 import { Sidebar } from './Sidebar';
@@ -9,13 +9,32 @@ export const VisualizerApp: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(true);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
 
+    const resizeObserver = new ResizeObserver(() => {
+      console.log('Container resized');
+      // Force resize event
+      window.dispatchEvent(new Event('resize'));
+      
+      // And another one after a short delay
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 100);
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
     document.addEventListener('fullscreenchange', handleFullscreenChange);
+    
     return () => {
+      resizeObserver.disconnect();
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, []);
@@ -52,6 +71,14 @@ export const VisualizerApp: React.FC = () => {
       document.exitFullscreen();
       setIsFullscreen(false);
     }
+    
+    // Dispatch resize event immediately
+    window.dispatchEvent(new Event('resize'));
+    
+    // Dispatch another resize event after animation completes
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 100);
   }, []);
 
   const toggleSidebar = useCallback(() => {
@@ -73,6 +100,7 @@ export const VisualizerApp: React.FC = () => {
     <div className="relative h-screen w-screen bg-slate-900 overflow-hidden">
       {/* Main Visualizer Area */}
       <div 
+        ref={containerRef}
         className={`absolute inset-0 transition-all duration-300 ease-in-out ${
           !isFullscreen && isSidebarOpen ? 'mr-80' : ''
         }`}

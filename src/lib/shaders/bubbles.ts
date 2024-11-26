@@ -10,14 +10,15 @@ precision highp float;
 const bool ENABLE_UNDERWATER_EFFECT = false; // Toggle underwater effect
 const float WAVE_STRENGTH = 0.02; // Strength of wave distortion
 const float ROTATION_SPEED = 0.1; // Speed of continuous rotation
-const float BEAT_ROTATION_BOOST = 0.2; // Additional rotation speed on beat
 const float COLOR_INTENSITY = 0.2; // Intensity of color modulation
 const float MIN_ZOOM = -0.6; // Minimum zoom level
 const float MAX_ZOOM = 5.0; // Maximum zoom level
 const float ZOOM_CYCLE_SPEED = 0.4; // Speed of zoom cycling
 const float DWELL_FACTOR = 0.8; // Factor for dwelling at zoom levels
-const float BASS_FFT_ROTATION_MULTIPLIER = 2.0; // Bass FFT multiplier for rotation calculation
-const float MID_FFT_ROTATION_MULTIPLIER = 0.5; // Mid FFT multiplier for rotation calculation
+const float BEAT_ROTATION_BOOST = 0.3; // Additional rotation speed on beat
+
+const float BASS_FFT_ROTATION_MULTIPLIER = 1.2; // Bass FFT multiplier for rotation calculation
+const float MID_FFT_ROTATION_MULTIPLIER = 0.2; // Mid FFT multiplier for rotation calculation
 
 // Uniforms
 uniform float uTime; // Current time
