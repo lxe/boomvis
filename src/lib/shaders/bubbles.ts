@@ -16,6 +16,8 @@ const float MIN_ZOOM = -0.6; // Minimum zoom level
 const float MAX_ZOOM = 5.0; // Maximum zoom level
 const float ZOOM_CYCLE_SPEED = 0.4; // Speed of zoom cycling
 const float DWELL_FACTOR = 0.8; // Factor for dwelling at zoom levels
+const float BASS_FFT_ROTATION_MULTIPLIER = 2.0; // Bass FFT multiplier for rotation calculation
+const float MID_FFT_ROTATION_MULTIPLIER = 0.5; // Mid FFT multiplier for rotation calculation
 
 // Uniforms
 uniform float uTime; // Current time
@@ -76,7 +78,10 @@ vec3 erot(vec3 p, vec3 ax, float baseSpeed) {
     float easedProgress = easeOutQuad(beatProgress);
 
     // Increase rotation speed briefly on beat
-    float beatRotationBoost = smoothstep(0.0, 1.0, beatProgress) * BEAT_ROTATION_BOOST * getFFTValue(0.1);
+    float beatRotationBoost = smoothstep(0.0, 1.0, beatProgress) * 
+        BEAT_ROTATION_BOOST * 
+        (getFFTValue(0.1) * BASS_FFT_ROTATION_MULTIPLIER) + 
+        (getFFTValue(0.5) * MID_FFT_ROTATION_MULTIPLIER);
 
     // Total rotation includes continuous rotation and beat-induced boost
     float totalRotation = continuousRotation + beatRotationBoost;
